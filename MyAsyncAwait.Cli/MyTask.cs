@@ -11,14 +11,18 @@ public class MyTask
 
     public bool IsCompleted
     {
-        get { return _completed; }
+        get
+        {
+            lock (this)
+            {
+                return _completed;
+            }
+        }
     }
 
     public void SetResult() => Complete(null);
 
-    public void SetException(Exception exception)
-    {
-    }
+    public void SetException(Exception exception) => Complete(exception);
 
     public void Wait()
     {
@@ -74,21 +78,31 @@ public class MyTask
     }
     
     
-    public MyTask ContinueWith(Func<MyTask> action)
+    public MyTask ContinueWith(Func<MyTask> func)
     {
         MyTask t = new();
         var callback = () =>
         {
             try
             {
-                action();
+                var next = func();
+                next.ContinueWith(() =>
+                {
+                    if (next._exception is not null)
+                    {
+                        t.SetException(next._exception);
+                    }
+                    else
+                    {
+                        t.SetResult();
+                    }
+                });
             }
             catch (Exception e)
             {
                 t.SetException(e);
                 return;
             }
-            t.SetResult();
         };
         lock (this)
         {
@@ -145,7 +159,7 @@ public class MyTask
                 {
                     if (_context is null)
                     {
-                        MyThreadPool.QueueUserWorkItem(_continuation);
+                        _continuation();
                     }
                     else
                     {
@@ -154,6 +168,13 @@ public class MyTask
                 });
             }
         }
+    }
+    
+    public static MyTask Delay(int timeout)
+    {
+        MyTask t = new();
+        new Timer(_ => t.SetResult()).Change(timeout, -1);
+        return t;
     }
 
     public static MyTask WhenAll(List<MyTask> tasks)

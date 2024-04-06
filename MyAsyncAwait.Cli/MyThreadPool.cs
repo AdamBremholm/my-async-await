@@ -26,7 +26,7 @@ public static class MyThreadPool
                         ExecutionContext.Run(context, state => ((Action)state!).Invoke(), workItem);
                     }
                 }
-            }) { IsBackground = false }.Start();
+            }) { IsBackground = true }.Start();
         }
     }
 }
