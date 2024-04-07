@@ -12,19 +12,31 @@ List<MyTask> tasks = [];
 //     }));
 // }
 
-Console.WriteLine("Hello, ");
-MyTask.Delay(2000).ContinueWith(delegate
+// Console.WriteLine("Hello, ");
+// MyTask.Delay(2000).ContinueWith(delegate
+// {
+//     Console.WriteLine("World");
+//     return MyTask.Delay(2000).ContinueWith(delegate
+//     {
+//         Console.WriteLine(" And Scott");
+//         return MyTask.Delay(2000).ContinueWith(delegate
+//         {
+//             Console.WriteLine(" How are you?");
+//         });
+//     });
+// }).Wait();
+
+MyTask.Iterate(PrintAsync()).Wait();
+
+static IEnumerable<MyTask> PrintAsync()
 {
-    Console.WriteLine("World");
-    return MyTask.Delay(2000).ContinueWith(delegate
+    for (int i = 0;  ; i++)
     {
-        Console.WriteLine(" And Scott");
-        return MyTask.Delay(2000).ContinueWith(delegate
-        {
-            Console.WriteLine(" How are you?");
-        });
-    });
-}).Wait();
+        yield return MyTask.Delay(1000);
+        Console.WriteLine(i);
+    }
+}
+
 // MyTask.WhenAll(tasks).Wait();
 
 // foreach (var t in tasks)

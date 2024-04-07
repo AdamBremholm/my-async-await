@@ -1,4 +1,5 @@
-﻿using System.Runtime.ExceptionServices;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 
 namespace MyAsyncAwait.Cli;
 
@@ -8,6 +9,20 @@ public class MyTask
     private Exception? _exception;
     private Action? _continuation;
     private ExecutionContext? _context;
+
+    public struct Awaiter(MyTask t) : INotifyCompletion
+    {
+        public Awaiter GetAwaiter() => this;
+        
+        public bool IsCompleted => t.IsCompleted;
+        
+        public void OnCompleted(Action continuation) => t.ContinueWith(continuation);
+        
+        public void GetResult() => t.Wait();
+
+    }
+    
+    public Awaiter GetAwaiter() => new(this);
 
     public bool IsCompleted
     {
@@ -59,6 +74,7 @@ public class MyTask
                 t.SetException(e);
                 return;
             }
+
             t.SetResult();
         };
         lock (this)
@@ -76,8 +92,8 @@ public class MyTask
 
         return t;
     }
-    
-    
+
+
     public MyTask ContinueWith(Func<MyTask> func)
     {
         MyTask t = new();
@@ -169,7 +185,7 @@ public class MyTask
             }
         }
     }
-    
+
     public static MyTask Delay(int timeout)
     {
         MyTask t = new();
@@ -202,5 +218,34 @@ public class MyTask
         }
 
         return t;
+    }
+
+    public static MyTask Iterate(IEnumerable<MyTask> tasks)
+    {
+        MyTask t = new();
+
+        using var enumerator = tasks.GetEnumerator();
+        MoveNext(enumerator, t);
+        return t;
+    }
+
+    private static void MoveNext(IEnumerator<MyTask> enumerator, MyTask t)
+    {
+        try
+        {
+            if (enumerator.MoveNext())
+            {
+                var next = enumerator.Current;
+                next.ContinueWith(() => MoveNext(enumerator, t));
+                return;
+            }
+        }
+        catch (Exception exception)
+        {
+            t.SetException(exception);
+            return;
+        }
+
+        t.SetResult();
     }
 }
